@@ -17,8 +17,8 @@ def loadMcVersionFilter(version):
     if version in mcVersionCache:
         return mcVersionCache[version]
     libSet = set()
-    with open("multimc/net.minecraft/%s.json" % version, 'r', encoding='utf-8') as mcFile:
-        mcVersion = MultiMCVersionFile(json.load(mcFile))
+    with open("meta/net.minecraft/%s.json" % version, 'r', encoding='utf-8') as mcFile:
+        mcVersion = MetaVersionFile(json.load(mcFile))
         for lib in mcVersion.libraries:
             libSet.add(lib.name)
         mcVersionCache[version] = libSet
@@ -46,7 +46,7 @@ def shouldIgnoreArtifact(libSet, match):
     return False
 
 def versionFromProfile(profile, version):
-    result = MultiMCVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
+    result = MetaVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
     mcversion = profile.install.minecraft
     result.requires = [DependencyEntry(uid='net.minecraft', equals=mcversion)]
     result.mainClass = profile.versionInfo.mainClass
@@ -80,13 +80,13 @@ def versionFromProfile(profile, version):
                 fixedName.version = "%s-%s" % (mcversion, fixedName.version)
             elif fixedName.artifact == "forge":
                 fixedName.classifier = "universal"
-        ourLib = MultiMCLibrary(name=fixedName)
+        ourLib = MetaLibrary(name=fixedName)
         if forgeLib.url == "http://files.minecraftforge.net/maven/":
             ourLib.url = "https://maven.minecraftforge.net/"
         else:
             ourLib.url = forgeLib.url
         #if forgeLib.checksums and len(forgeLib.checksums) == 2:
-        #    ourLib.mmcHint = "forge-pack-xz"
+        #    ourLib.metaHint = "forge-pack-xz"
         libs.append(ourLib)
     result.libraries = libs
     result.order = 5
@@ -94,7 +94,7 @@ def versionFromProfile(profile, version):
 
 def versionFromModernizedInstaller(installerVersion : MojangVersionFile, version: ForgeVersion):
     eprint("Generating Modernized Forge %s." % version.longVersion)
-    result = MultiMCVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
+    result = MetaVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
     mcversion = version.mcversion
     result.requires = [DependencyEntry(uid='net.minecraft', equals=mcversion)]
     result.mainClass = installerVersion.mainClass
@@ -114,40 +114,40 @@ def versionFromModernizedInstaller(installerVersion : MojangVersionFile, version
     libs = []
     mcFilter = loadMcVersionFilter(mcversion)
     for upstreamLib in installerVersion.libraries:
-        mmcLib = MultiMCLibrary(upstreamLib.to_json())
-        if mmcLib.name.isLwjgl():
+        metaLib = MetaLibrary(upstreamLib.to_json())
+        if metaLib.name.isLwjgl():
             continue
-        if mmcLib.name.isLog4j():
+        if metaLib.name.isLog4j():
             continue
-        if shouldIgnoreArtifact(mcFilter, mmcLib.name):
+        if shouldIgnoreArtifact(mcFilter, metaLib.name):
             continue
-        if mmcLib.name.group == "net.minecraftforge":
-            if mmcLib.name.artifact == "forge":
-                fixedName = mmcLib.name
+        if metaLib.name.group == "net.minecraftforge":
+            if metaLib.name.artifact == "forge":
+                fixedName = metaLib.name
                 fixedName.classifier = "universal"
-                mmcLib.downloads.artifact.path = fixedName.getPath()
-                mmcLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % fixedName.getPath()
-                mmcLib.name = fixedName
-                libs.append(mmcLib)
+                metaLib.downloads.artifact.path = fixedName.getPath()
+                metaLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % fixedName.getPath()
+                metaLib.name = fixedName
+                libs.append(metaLib)
                 continue
-            elif mmcLib.name.artifact == "minecraftforge":
-                fixedName = mmcLib.name
+            elif metaLib.name.artifact == "minecraftforge":
+                fixedName = metaLib.name
                 fixedName.artifact = "forge"
                 fixedName.classifier = "universal"
                 fixedName.version = "%s-%s" % (mcversion, fixedName.version)
-                mmcLib.downloads.artifact.path = fixedName.getPath()
-                mmcLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % fixedName.getPath()
-                mmcLib.name = fixedName
-                libs.append(mmcLib)
+                metaLib.downloads.artifact.path = fixedName.getPath()
+                metaLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % fixedName.getPath()
+                metaLib.name = fixedName
+                libs.append(metaLib)
                 continue
-        libs.append(mmcLib)
+        libs.append(metaLib)
 
     result.libraries = libs
     result.order = 5
     return result
 
 def versionFromLegacy(version, legacyinfo : ForgeLegacyInfo):
-    result = MultiMCVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
+    result = MetaVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
     mcversion = version.mcversion_sane
     result.requires = [DependencyEntry(uid='net.minecraft', equals=mcversion)]
     result.releaseTime = legacyinfo.releaseTime
@@ -161,7 +161,7 @@ def versionFromLegacy(version, legacyinfo : ForgeLegacyInfo):
     else:
         classifier = "client"
     coord = GradleSpecifier("net.minecraftforge:forge:%s:%s" % (version.longVersion,classifier))
-    mainmod = MultiMCLibrary(name = coord)
+    mainmod = MetaLibrary(name = coord)
     mainmod.downloads = MojangLibraryDownloads()
     mainmod.downloads.artifact = MojangArtifact()
     mainmod.downloads.artifact.path = None
@@ -173,7 +173,7 @@ def versionFromLegacy(version, legacyinfo : ForgeLegacyInfo):
 
 def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, installerProfile: ForgeInstallerProfileV2, version: ForgeVersion):
     eprint("Generating Forge %s." % version.longVersion)
-    result = MultiMCVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
+    result = MetaVersionFile({"name":"Forge", "version":version.rawVersion, "uid":"net.minecraftforge" })
     result.requires = [DependencyEntry(uid='net.minecraft', equals=version.mcversion_sane)]
     result.mainClass = "io.github.zekerzhayard.forgewrapper.installer.Main"
 
@@ -183,7 +183,7 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
     # load the locally cached installer file info and use it to add the installer entry in the json
     with open("upstream/forge/installer_info/%s.json" % version.longVersion, 'r', encoding='utf-8') as f:
         installerInfo = InstallerInfo(json.load(f))
-        InstallerLib = MultiMCLibrary(name=GradleSpecifier("net.minecraftforge:forge:%s:installer" % (version.longVersion)))
+        InstallerLib = MetaLibrary(name=GradleSpecifier("net.minecraftforge:forge:%s:installer" % (version.longVersion)))
         InstallerLib.downloads = MojangLibraryDownloads()
         InstallerLib.downloads.artifact = MojangArtifact()
         InstallerLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % (InstallerLib.name.getPath())
@@ -192,22 +192,22 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
         mavenLibs.append(InstallerLib)
 
     for upstreamLib in installerProfile.libraries:
-        mmcLib = MultiMCLibrary(upstreamLib.to_json())
-        if mmcLib.name.group == "net.minecraftforge":
-            if mmcLib.name.artifact == "forge":
-                if mmcLib.name.classifier == "universal":
-                    mmcLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % mmcLib.name.getPath()
-                    mavenLibs.append(mmcLib)
+        metaLib = MetaLibrary(upstreamLib.to_json())
+        if metaLib.name.group == "net.minecraftforge":
+            if metaLib.name.artifact == "forge":
+                if metaLib.name.classifier == "universal":
+                    metaLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % metaLib.name.getPath()
+                    mavenLibs.append(metaLib)
                     continue
-        if mmcLib.name.isLog4j():
+        if metaLib.name.isLog4j():
             continue
-        mavenLibs.append(mmcLib)
+        mavenLibs.append(metaLib)
 
     result.mavenFiles = mavenLibs
 
     libraries = []
 
-    # wrapperLib = MultiMCLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc4"))
+    # wrapperLib = MetaLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc4"))
     # wrapperLib.downloads = MojangLibraryDownloads()
     # wrapperLib.downloads.artifact = MojangArtifact()
     # wrapperLib.downloads.artifact.url = "https://files.multimc.org/maven/%s" % (wrapperLib.name.getPath())
@@ -215,7 +215,7 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
     # wrapperLib.downloads.artifact.size = 36203
     # libraries.append(wrapperLib)
 
-    # wrapperLib = MultiMCLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc5"))
+    # wrapperLib = MetaLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc5"))
     # wrapperLib.downloads = MojangLibraryDownloads()
     # wrapperLib.downloads.artifact = MojangArtifact()
     # wrapperLib.downloads.artifact.url = "https://files.multimc.org/maven/%s" % (wrapperLib.name.getPath())
@@ -223,7 +223,7 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
     # wrapperLib.downloads.artifact.size = 35390
     # libraries.append(wrapperLib)
 
-    wrapperLib = MultiMCLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc6"))
+    wrapperLib = MetaLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc6"))
     wrapperLib.downloads = MojangLibraryDownloads()
     wrapperLib.downloads.artifact = MojangArtifact()
     wrapperLib.downloads.artifact.url = "https://files.multimc.org/maven/%s" % (wrapperLib.name.getPath())
@@ -232,23 +232,23 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
     libraries.append(wrapperLib)
 
     for upstreamLib in installerVersion.libraries:
-        mmcLib = MultiMCLibrary(upstreamLib.to_json())
-        if mmcLib.name.group == "net.minecraftforge":
-            if mmcLib.name.artifact == "forge" and not mmcLib.name.classifier:
-                fixedName = mmcLib.name
+        metaLib = MetaLibrary(upstreamLib.to_json())
+        if metaLib.name.group == "net.minecraftforge":
+            if metaLib.name.artifact == "forge" and not metaLib.name.classifier:
+                fixedName = metaLib.name
                 fixedName.classifier = "launcher"
-                mmcLib.downloads.artifact.path = fixedName.getPath()
-                mmcLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % fixedName.getPath()
-                mmcLib.name = fixedName
-                libraries.append(mmcLib)
+                metaLib.downloads.artifact.path = fixedName.getPath()
+                metaLib.downloads.artifact.url = "https://maven.minecraftforge.net/%s" % fixedName.getPath()
+                metaLib.name = fixedName
+                libraries.append(metaLib)
                 continue
         # forge 49.0.4+ sets an empty client download https://github.com/MinecraftForge/MinecraftForge/commit/5c15aa3322db8a3f95e97390638f80eb6d4e5d15
-        # so we need clear the url to stop mmc from downloading it
-        if not mmcLib.downloads.artifact.url and mmcLib.name.classifier == "client":
+        # so we need clear the url to stop the launcher from downloading it
+        if not metaLib.downloads.artifact.url and metaLib.name.classifier == "client":
             continue
-        if mmcLib.name.isLog4j():
+        if metaLib.name.isLog4j():
             continue
-        libraries.append(mmcLib)
+        libraries.append(metaLib)
     result.libraries = libraries
 
     result.releaseTime = installerVersion.releaseTime
@@ -345,7 +345,7 @@ for id, entry in remoteVersionlist.versions.items():
         recommendedVersions.append(version.rawVersion)
 
     # If we do not have the corresponding Minecraft version, we ignore it
-    if not os.path.isfile("multimc/net.minecraft/%s.json" % version.mcversion_sane):
+    if not os.path.isfile("meta/net.minecraft/%s.json" % version.mcversion_sane):
         eprint ("Skipping %s with no corresponding Minecraft version %s" % (id, version.mcversion_sane))
         continue
 
@@ -386,7 +386,7 @@ for id, entry in remoteVersionlist.versions.items():
 
             outVersion = versionFromLegacy(version, legacyinfolist.number[build])
 
-    outFilepath = "multimc/net.minecraftforge/%s.json" % outVersion.version
+    outFilepath = "meta/net.minecraftforge/%s.json" % outVersion.version
     with open(outFilepath, 'w') as outfile:
         json.dump(outVersion.to_json(), outfile, sort_keys=True, indent=4)
 
@@ -394,7 +394,7 @@ recommendedVersions.sort()
 
 print ('Recommended versions:', recommendedVersions)
 
-sharedData = MultiMCSharedPackageData(uid = 'net.minecraftforge', name = "Forge")
+sharedData = MetaSharedPackageData(uid = 'net.minecraftforge', name = "Forge")
 sharedData.projectUrl = 'https://www.minecraftforge.net/forum/'
 sharedData.recommended = recommendedVersions
 sharedData.write()

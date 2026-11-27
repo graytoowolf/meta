@@ -29,7 +29,7 @@ function fail_in {
 }
 
 function fail_out {
-    cd "${BASEDIR}/${MMC_DIR}"
+    cd "${BASEDIR}/${META_DIR}"
     git reset --hard HEAD
     exit 1
 }
@@ -45,12 +45,12 @@ git reset --hard HEAD || fail_generic "git reset upstream"
 git checkout ${BRANCH} || fail_generic "git checkout upstream"
 cd "${BASEDIR}"
 
-./updateMojang.py || fail_in "Mojang"
-./updateForge.py || fail_in "Forge"
-./updateNeoforge.py || fail_in "Neoforge"
-./updateFabric.py || fail_in "Fabric"
-./updateQuilt.py || undo_sub "Quilt" "quilt"
-./updateLiteloader.py || fail_in "Liteloader"
+python ./updateMojang.py || fail_in "Mojang"
+python ./updateForge.py || fail_in "Forge"
+python ./updateNeoforge.py || fail_in "Neoforge"
+python ./updateFabric.py || fail_in "Fabric"
+python ./updateQuilt.py || undo_sub "Quilt" "quilt"
+python ./updateLiteloader.py || fail_in "Liteloader"
 
 if [ "${DEPLOY_TO_GIT}" = true ] ; then
     cd "${BASEDIR}/${UPSTREAM_DIR}"
@@ -67,21 +67,21 @@ if [ "${DEPLOY_TO_GIT}" = true ] ; then
     cd "${BASEDIR}"
 fi
 
-cd "${BASEDIR}/${MMC_DIR}"
-git reset --hard HEAD || fail_generic "git reset multimc"
-git checkout ${BRANCH} || fail_generic "git checkout multimc"
+cd "${BASEDIR}/${META_DIR}"
+git reset --hard HEAD || fail_generic "git reset meta"
+git checkout ${BRANCH} || fail_generic "git checkout meta"
 cd "${BASEDIR}"
 
-./generateMojang.py || fail_out "Mojang"
-./generateForge.py || fail_out "Forge"
-./generateNeoforge.py || fail_out "Neoforge"
-./generateFabric.py || fail_out "Fabric"
-./generateQuilt.py || fail_out "Quilt"
-./generateLiteloader.py || fail_out "Liteloader"
-./index.py || fail_out "Generating Index"
+python ./generateMojang.py || fail_out "Mojang"
+python ./generateForge.py || fail_out "Forge"
+python ./generateNeoforge.py || fail_out "Neoforge"
+python ./generateFabric.py || fail_out "Fabric"
+python ./generateQuilt.py || fail_out "Quilt"
+python ./generateLiteloader.py || fail_out "Liteloader"
+python ./index.py || fail_out "Generating Index"
 
 if [ "${DEPLOY_TO_GIT}" = true ] ; then
-    cd "${BASEDIR}/${MMC_DIR}"
+    cd "${BASEDIR}/${META_DIR}"
     git add index.json org.lwjgl/* net.minecraft/* || fail_out "git add"
     git add net.minecraftforge/* || fail_out "git add"
     git add net.neoforged/* || fail_out "git add"
@@ -94,7 +94,7 @@ if [ "${DEPLOY_TO_GIT}" = true ] ; then
 
     if ! git diff --cached --exit-code ; then
         git commit -a -m "Update ${currentDate}" || fail_out "git commit"
-        GIT_SSH_COMMAND="ssh -i ${BASEDIR}/config/meta-multimc.key" git push || fail_generic "git push multimc"
+        GIT_SSH_COMMAND="ssh -i ${BASEDIR}/config/meta-multimc.key" git push || fail_generic "git push meta"
     fi
 fi
 
@@ -115,10 +115,10 @@ if [ "${DEPLOY_TO_FOLDER}" = true ] ; then
     DEPLOY_FOLDER_var="DEPLOY_FOLDER_$MODE"
     DEPLOY_FOLDER="${!DEPLOY_FOLDER_var}"
     echo "Deploying to ${DEPLOY_FOLDER}"
-    rsync -rvog --chown=${DEPLOY_FOLDER_USER}:${DEPLOY_FOLDER_GROUP} --exclude=.git ${BASEDIR}/${MMC_DIR}/ ${DEPLOY_FOLDER}
+    rsync -rvog --chown=${DEPLOY_FOLDER_USER}:${DEPLOY_FOLDER_GROUP} --exclude=.git ${BASEDIR}/${META_DIR}/ ${DEPLOY_FOLDER}
 fi
 if [ "${DEPLOY_TO_S3}" = true ] ; then
-    rclone --config ${BASEDIR}/config/rclone.conf --checksum --transfers 32 --checkers 32 --exclude=".git*" --exclude=".git/**" sync ${BASEDIR}/${MMC_DIR}/ ${S3_BUCKET} || fail_generic "Deploy Meta to S3"
+    rclone --config ${BASEDIR}/config/rclone.conf --checksum --transfers 32 --checkers 32 --exclude=".git*" --exclude=".git/**" sync ${BASEDIR}/${META_DIR}/ ${S3_BUCKET} || fail_generic "Deploy Meta to S3"
 fi
 
 exit 0

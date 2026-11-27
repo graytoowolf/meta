@@ -12,10 +12,10 @@ class QuiltInstallerArguments(JsonObject):
     server = ListProperty(StringProperty)
 
 class QuiltInstallerLibraries(JsonObject):
-    client = ListProperty(MultiMCLibrary)
-    common = ListProperty(MultiMCLibrary)
-    server = ListProperty(MultiMCLibrary)
-    development = ListProperty(MultiMCLibrary, required=False)
+    client = ListProperty(MetaLibrary)
+    common = ListProperty(MetaLibrary)
+    server = ListProperty(MetaLibrary)
+    development = ListProperty(MetaLibrary, required=False)
 
 class QuiltInstallerDataV1(JsonObject):
     version = IntegerProperty(required=True)

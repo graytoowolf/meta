@@ -10,10 +10,10 @@ class FabricInstallerLaunchwrapper(JsonObject):
     tweakers = ObjectProperty(FabricInstallerArguments, required=True)
 
 class FabricInstallerLibrariesV1(JsonObject):
-    client = ListProperty(MultiMCLibrary)
-    common = ListProperty(MultiMCLibrary)
-    server = ListProperty(MultiMCLibrary)
-    development = ListProperty(MultiMCLibrary, required=False)
+    client = ListProperty(MetaLibrary)
+    common = ListProperty(MetaLibrary)
+    server = ListProperty(MetaLibrary)
+    development = ListProperty(MetaLibrary, required=False)
 
 class FabricInstallerDataV1(JsonObject):
     version = IntegerProperty(required=True)
@@ -45,8 +45,8 @@ class FabricLibrary (JsonObject):
     sha256 = StringProperty(exclude_if_none=True, default=None)
     sha512 = StringProperty(exclude_if_none=True, default=None)
 
-    def toMmcLibrary(self) -> MultiMCLibrary:
-        return MultiMCLibrary(
+    def toMetaLibrary(self) -> MetaLibrary:
+        return MetaLibrary(
             name = self.name,
             downloads = MojangLibraryDownloads(
                 artifact = MojangArtifact(

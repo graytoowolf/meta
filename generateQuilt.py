@@ -15,8 +15,8 @@ def mkdirs(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
-mkdirs("multimc/org.quiltmc.quilt-loader")
-#mkdirs("multimc/org.quiltmc.intermediary")
+mkdirs("meta/org.quiltmc.quilt-loader")
+#mkdirs("meta/org.quiltmc.intermediary")
 
 def loadJarInfo(mavenKey):
     with open("upstream/quilt/jars/" + mavenKey.replace(":", ".") + ".json", 'r', encoding='utf-8') as jarInfoFile:
@@ -27,7 +27,7 @@ def processLoaderVersion(loaderVersion, it, loaderData):
     if (len(loaderRecommended) < 1) and verStable:
         loaderRecommended.append(loaderVersion)
     versionJarInfo = loadJarInfo(it["maven"])
-    version = MultiMCVersionFile(name="Quilt Loader", uid="org.quiltmc.quilt-loader", version=loaderVersion)
+    version = MetaVersionFile(name="Quilt Loader", uid="org.quiltmc.quilt-loader", version=loaderVersion)
     version.releaseTime = versionJarInfo.releaseTime
 #    version.requires = [DependencyEntry(uid='org.quiltmc.intermediary')]
     version.requires = [DependencyEntry(uid='net.fabricmc.intermediary')]
@@ -43,21 +43,21 @@ def processLoaderVersion(loaderVersion, it, loaderData):
     version.libraries = []
     version.libraries.extend(loaderData.libraries.common)
     version.libraries.extend(loaderData.libraries.client)
-    loaderLib = MultiMCLibrary(name=GradleSpecifier(it["maven"]), url="https://maven.quiltmc.org/repository/release/")
+    loaderLib = MetaLibrary(name=GradleSpecifier(it["maven"]), url="https://maven.quiltmc.org/repository/release/")
     version.libraries.append(loaderLib)
     loaderVersions.append(version)
 
 #def processIntermediaryVersion(it):
 #    intermediaryRecommended.append(it["version"])
 #    versionJarInfo = loadJarInfo(it["maven"])
-#    version = MultiMCVersionFile(name="Intermediary Mappings", uid="org.quiltmc.intermediary", version=it["version"])
+#    version = MetaVersionFile(name="Intermediary Mappings", uid="org.quiltmc.intermediary", version=it["version"])
 #    version.releaseTime = versionJarInfo.releaseTime
 #    version.requires = [DependencyEntry(uid='net.minecraft', equals=it["version"])]
 #    version.order = 11
 #    version.type = "release"
 #    version.libraries = []
 #    version.volatile = True
-#    mappingLib = MultiMCLibrary(name=GradleSpecifier(it["maven"]), url="https://maven.quiltmc.org/repository/release/")
+#    mappingLib = MetaLibrary(name=GradleSpecifier(it["maven"]), url="https://maven.quiltmc.org/repository/release/")
 #    version.libraries.append(mappingLib)
 #    intermediaryVersions.append(version)
 
@@ -76,11 +76,11 @@ with open("upstream/quilt/meta-v3/loader.json", 'r', encoding='utf-8') as loader
 #        processIntermediaryVersion(it)
 
 for version in loaderVersions:
-    outFilepath = "multimc/org.quiltmc.quilt-loader/%s.json" % version.version
+    outFilepath = "meta/org.quiltmc.quilt-loader/%s.json" % version.version
     with open(outFilepath, 'w') as outfile:
         json.dump(version.to_json(), outfile, sort_keys=True, indent=4)
 
-sharedData = MultiMCSharedPackageData(uid = 'org.quiltmc.quilt-loader', name = 'Quilt Loader')
+sharedData = MetaSharedPackageData(uid = 'org.quiltmc.quilt-loader', name = 'Quilt Loader')
 sharedData.recommended = loaderRecommended
 sharedData.description = "Quilt Loader is a tool to load Quilt-compatible mods in game environments."
 sharedData.projectUrl = "https://quiltmc.org"
@@ -88,11 +88,11 @@ sharedData.authors = ["Quilt Developers"]
 sharedData.write()
 
 #for version in intermediaryVersions:
-#    outFilepath = "multimc/org.quiltmc.intermediary/%s.json" % version.version
+#    outFilepath = "meta/org.quiltmc.intermediary/%s.json" % version.version
 #    with open(outFilepath, 'w') as outfile:
 #        json.dump(version.to_json(), outfile, sort_keys=True, indent=4)
 
-#sharedData = MultiMCSharedPackageData(uid = 'org.quiltmc.intermediary', name = 'Intermediary Mappings')
+#sharedData = MetaSharedPackageData(uid = 'org.quiltmc.intermediary', name = 'Intermediary Mappings')
 #sharedData.recommended = intermediaryRecommended
 #sharedData.description = "Intermediary mappings allow using Quilt Loader with mods for Minecraft in a more compatible manner."
 #sharedData.projectUrl = "https://quiltmc.org"

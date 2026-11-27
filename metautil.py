@@ -188,24 +188,24 @@ class MojangVersionFile (JsonObject):
     complianceLevel = IntegerProperty(exclude_if_none=True, default=None)
     javaVersion = ObjectProperty(JavaVersion, exclude_if_none=True, default=None)
 
-CurrentMultiMCFormatVersion = 1
-def validateSupportedMultiMCVersion(version):
-    if version > CurrentMultiMCFormatVersion:
-        raise UnknownVersionException("Unsupported MultiMC format version: %d. Max supported is: %d" % (version, CurrentMultiMCFormatVersion))
+CurrentMetaFormatVersion = 1
+def validateSupportedMetaVersion(version):
+    if version > CurrentMetaFormatVersion:
+        raise UnknownVersionException("Unsupported Meta format version: %d. Max supported is: %d" % (version, CurrentMetaFormatVersion))
 
-class MultiMCLibrary (MojangLibrary):
+class MetaLibrary (MojangLibrary):
     url = StringProperty(exclude_if_none=True, default=None)
-    mmcHint = StringProperty(name="MMC-hint", exclude_if_none=True, default=None)
+    metaHint = StringProperty(name="MMC-hint", exclude_if_none=True, default=None)
 
 class VersionedJsonObject(JsonObject):
-    formatVersion = IntegerProperty(default=CurrentMultiMCFormatVersion, validators=validateSupportedMultiMCVersion)
+    formatVersion = IntegerProperty(default=CurrentMetaFormatVersion, validators=validateSupportedMetaVersion)
 
 class DependencyEntry (JsonObject):
     uid = StringProperty(required=True)
     equals = StringProperty(exclude_if_none=True, default=None)
     suggests = StringProperty(exclude_if_none=True, default=None)
 
-class MultiMCVersionFile (VersionedJsonObject):
+class MetaVersionFile (VersionedJsonObject):
     name = StringProperty(required=True)
     version = StringProperty(required=True)
     uid = StringProperty(required=True)
@@ -213,10 +213,10 @@ class MultiMCVersionFile (VersionedJsonObject):
     conflicts = ListProperty(DependencyEntry, exclude_if_none=True, default=None)
     volatile = BooleanProperty(exclude_if_none=True, default=None)
     assetIndex = ObjectProperty(MojangAssets, exclude_if_none=True, default=None)
-    libraries = ListProperty(MultiMCLibrary, exclude_if_none=True, default=None)
-    mavenFiles = ListProperty(MultiMCLibrary, exclude_if_none=True, default=None)
-    mainJar = ObjectProperty(MultiMCLibrary, exclude_if_none=True, default=None)
-    jarMods = ListProperty(MultiMCLibrary, exclude_if_none=True, default=None)
+    libraries = ListProperty(MetaLibrary, exclude_if_none=True, default=None)
+    mavenFiles = ListProperty(MetaLibrary, exclude_if_none=True, default=None)
+    mainJar = ObjectProperty(MetaLibrary, exclude_if_none=True, default=None)
+    jarMods = ListProperty(MetaLibrary, exclude_if_none=True, default=None)
     mainClass = StringProperty(exclude_if_none=True, default=None)
     appletClass = StringProperty(exclude_if_none=True, default=None)
     minecraftArguments = StringProperty(exclude_if_none=True, default=None)
@@ -236,20 +236,20 @@ class UnknownComplianceLevelException(Exception):
         self.message = message
 
 
-# Convert Mojang version file object to a MultiMC version file object
-def MojangToMultiMC (file, name, uid, version):
-    mmcFile = MultiMCVersionFile(
+# Convert Mojang version file object to a Meta version file object
+def MojangToMeta (file, name, uid, version):
+    metaFile = MetaVersionFile(
         {
             "name": name,
             "uid": uid,
             "version": version
         }
     )
-    mmcFile.assetIndex = file.assetIndex
-    mmcFile.libraries = file.libraries
-    mmcFile.mainClass = file.mainClass
+    metaFile.assetIndex = file.assetIndex
+    metaFile.libraries = file.libraries
+    metaFile.mainClass = file.mainClass
     if file.id:
-        mainJar = MultiMCLibrary(
+        mainJar = MetaLibrary(
             {
                 "name": "com.mojang:minecraft:%s:client" % file.id,
             }
@@ -261,25 +261,25 @@ def MojangToMultiMC (file, name, uid, version):
         mainJar.downloads.artifact.url = cldl.url
         mainJar.downloads.artifact.sha1 = cldl.sha1
         mainJar.downloads.artifact.size = cldl.size
-        mmcFile.mainJar = mainJar
+        metaFile.mainJar = mainJar
 
-    mmcFile.minecraftArguments = file.minecraftArguments
-    mmcFile.releaseTime = file.releaseTime
+    metaFile.minecraftArguments = file.minecraftArguments
+    metaFile.releaseTime = file.releaseTime
     # time should not be set.
-    mmcFile.type = file.type
+    metaFile.type = file.type
     maxSupportedLevel = 1
     if file.complianceLevel:
         if file.complianceLevel == 0:
             pass
         elif file.complianceLevel == 1:
-            if not mmcFile.addTraits:
-                mmcFile.addTraits = []
-            mmcFile.addTraits.append("XR:Initial")
+            if not metaFile.addTraits:
+                metaFile.addTraits = []
+            metaFile.addTraits.append("XR:Initial")
         else:
             raise UnknownComplianceLevelException("Unsupported Mojang compliance level: %d. Max supported is: %d" % (file.complianceLevel, maxSupportedLevel))
-    return mmcFile
+    return metaFile
 
-class MultiMCSharedPackageData(VersionedJsonObject):
+class MetaSharedPackageData(VersionedJsonObject):
     name = StringProperty(required=True)
     uid = StringProperty(required=True)
     recommended = ListProperty(StringProperty, exclude_if_none=True, default=None)
@@ -289,24 +289,24 @@ class MultiMCSharedPackageData(VersionedJsonObject):
 
     def write(self):
         try:
-            with open("multimc/%s/package.json" % self.uid, 'w') as file:
+            with open("meta/%s/package.json" % self.uid, 'w') as file:
                 json.dump(self.to_json(), file, sort_keys=True, indent=4)
         except EnvironmentError as e:
             print("Error while trying to save shared packaged data for %s:" % self.uid, e)
 
 def writeSharedPackageData(uid, name):
-    desc = MultiMCSharedPackageData({
+    desc = MetaSharedPackageData({
         'name': name,
         'uid': uid
         })
-    with open("multimc/%s/package.json" % uid, 'w') as file:
+    with open("meta/%s/package.json" % uid, 'w') as file:
         json.dump(desc.to_json(), file, sort_keys=True, indent=4)
 
 def readSharedPackageData(uid):
-    with open("multimc/%s/package.json" % uid, 'r') as file:
-        return MultiMCSharedPackageData(json.load(file))
+    with open("meta/%s/package.json" % uid, 'r') as file:
+        return MetaSharedPackageData(json.load(file))
 
-class MultiMCVersionIndexEntry(JsonObject):
+class MetaVersionIndexEntry(JsonObject):
     version = StringProperty()
     type = StringProperty(exclude_if_none=True, default=None)
     releaseTime = ISOTimestampProperty()
@@ -316,21 +316,21 @@ class MultiMCVersionIndexEntry(JsonObject):
     volatile = BooleanProperty(exclude_if_none=True, default=None)
     sha256 = StringProperty()
 
-class MultiMCVersionIndex(VersionedJsonObject):
+class MetaVersionIndex(VersionedJsonObject):
     name = StringProperty()
     uid = StringProperty()
-    versions = ListProperty(MultiMCVersionIndexEntry)
+    versions = ListProperty(MetaVersionIndexEntry)
 
-class MultiMCPackageIndexEntry(JsonObject):
+class MetaPackageIndexEntry(JsonObject):
     name = StringProperty()
     uid = StringProperty()
     sha256 = StringProperty()
 
-class MultiMCPackageIndex(VersionedJsonObject):
-    packages = ListProperty(MultiMCPackageIndexEntry)
+class MetaPackageIndex(VersionedJsonObject):
+    packages = ListProperty(MetaPackageIndexEntry)
 
 '''
-The MultiMC static override file for legacy looks like this:
+The Meta static override file for legacy looks like this:
 {
     "versions": [
         ...
@@ -357,19 +357,19 @@ class LegacyOverrideEntry(JsonObject):
 class LegacyOverrideIndex(JsonObject):
     versions = DictProperty(LegacyOverrideEntry)
 
-def ApplyLegacyOverride (mmcFile, legacyOverride):
+def ApplyLegacyOverride (metaFile, legacyOverride):
     # simply hard override classes
-    mmcFile.mainClass = legacyOverride.mainClass
-    mmcFile.appletClass = legacyOverride.appletClass
+    metaFile.mainClass = legacyOverride.mainClass
+    metaFile.appletClass = legacyOverride.appletClass
     # if we have an updated release time (more correct than Mojang), use it
     if legacyOverride.releaseTime != None:
-        mmcFile.releaseTime = legacyOverride.releaseTime
+        metaFile.releaseTime = legacyOverride.releaseTime
     # add traits, if any
     if legacyOverride.addTraits:
-        if not mmcFile.addTraits:
-            mmcFile.addTraits = []
-        mmcFile.addTraits = mmcFile.addTraits + legacyOverride.addTraits
+        if not metaFile.addTraits:
+            metaFile.addTraits = []
+        metaFile.addTraits = metaFile.addTraits + legacyOverride.addTraits
     # remove all libraries - they are not needed for legacy
-    mmcFile.libraries = None
+    metaFile.libraries = None
     # remove minecraft arguments - we use our own hardcoded ones
-    mmcFile.minecraftArguments = None
+    metaFile.minecraftArguments = None

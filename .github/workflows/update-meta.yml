@@ -1,0 +1,235 @@
+
+name: Update Minecraft Meta
+
+on:
+  # 每天北京时间 04:00 自动更新
+  schedule:
+    - cron: "0 20 * * *"
+
+  # 支持手动触发
+  workflow_dispatch:
+
+  # 生成脚本或静态数据有更新时自动运行
+  push:
+    branches:
+      - master
+    paths:
+      - ".github/workflows/update-meta.yml"
+      - "config/**"
+      - "*.py"
+      - "*.sh"
+      - "static/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-minecraft-meta
+  cancel-in-progress: false
+
+jobs:
+  update-meta:
+    name: Generate and Upload Meta
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    env:
+      PYTHONUNBUFFERED: "1"
+      # generateMojang.py 的 hashVersion 用本地时区时间算哈希，白名单是在 UTC+1 下生成的；
+      # CI 默认 UTC 会算出不同哈希导致 "No variant decided"。固定为 UTC+1（无夏令时）。
+      TZ: "Etc/GMT-1"
+
+    steps:
+      # 1. 获取自己的 meta 脚本仓库
+      - name: Checkout Meta Scripts
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 2. 安装 Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. 安装 Python 依赖
+      - name: Install Python Dependencies
+        run: |
+          set -e
+
+          python -m pip install --upgrade pip
+          python -m pip install \
+            requests \
+            "CacheControl[filecache]" \
+            iso8601 \
+            six \
+            setuptools
+
+          echo "Python:"
+          which python
+          python --version
+          python -c "import sys; print(sys.executable)"
+
+          echo "Installed packages:"
+          python -m pip show requests CacheControl filelock iso8601 six setuptools
+          python -c "import tempfile; from cachecontrol.caches import FileCache; FileCache(tempfile.mkdtemp(), forever=True); print('依赖导入成功')"
+
+
+      # 4. 克隆官方原始数据和生成结果仓库
+      - name: Clone Meta Repositories
+        run: |
+          git clone --depth 1 --branch master \
+            https://github.com/MultiMC/meta-upstream.git upstream
+
+          git clone --depth 1 --branch master \
+            https://github.com/MultiMC/meta-multimc.git meta
+
+      # 5. 覆盖本地运行配置
+      - name: Configure Meta
+        run: |
+          mkdir -p config
+
+          cat > config/config_local.sh <<'EOF'
+          export UPSTREAM_DIR=upstream
+          export UPSTREAM_REPO=https://github.com/MultiMC/meta-upstream.git
+
+          export META_DIR=meta
+          export META_REPO=https://github.com/MultiMC/meta-multimc.git
+
+          export BRANCH_master=master
+
+          # 禁止向官方仓库推送
+          export DEPLOY_TO_GIT=false
+
+          # 禁止使用原项目的 S3 和本地目录发布
+          export DEPLOY_TO_S3=false
+          export DEPLOY_TO_FOLDER=false
+
+          # 不需要额外同步 Forge Maven
+          export UPDATE_FORGE_MAVEN=false
+          export DEPLOY_FORGE_MAVEN=false
+          export DEPLOY_FORGE_MAVEN_S3=false
+          EOF
+
+      # 6. 执行官方元数据更新和生成脚本
+      - name: Generate Meta
+        shell: bash
+        run: |
+          set -e
+
+          echo "===== Python 环境 ====="
+          which python
+          python --version
+          python -c "import sys; print(sys.executable)"
+          python -c "import cachecontrol; print(cachecontrol.__file__)"
+
+          echo "===== 系统命令 ====="
+          command -v chmod
+          command -v git
+
+          echo "===== Generate Meta ====="
+          MODE=master bash ./update.sh
+
+
+      # 7. 检查生成结果
+      - name: Validate Generated Meta
+        run: |
+          set -e
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          meta_dir = Path("meta")
+          json_files = list(meta_dir.rglob("*.json"))
+
+          if not json_files:
+              raise SystemExit("错误：没有找到 JSON 文件")
+
+          for path in json_files:
+              try:
+                  with path.open("r", encoding="utf-8") as file:
+                      json.load(file)
+              except Exception as error:
+                  raise SystemExit(f"JSON 格式错误：{path}: {error}")
+
+          required_files = [
+              meta_dir / "index.json",
+              meta_dir / "net.minecraft" / "index.json",
+              meta_dir / "org.lwjgl" / "index.json",
+          ]
+
+          for path in required_files:
+              if not path.is_file():
+                  raise SystemExit(f"错误：缺少必需文件 {path}")
+
+          print(f"JSON 检查通过，共 {len(json_files)} 个文件")
+          PY
+
+          echo "生成目录大小："
+          du -sh meta
+
+      # 8. 安装七牛云 Qshell
+      - name: Install Qshell
+        run: |
+          set -e
+
+          QSHELL_VERSION="2.19.13"
+          QSHELL_URL="https://github.com/qiniu/qshell/releases/download/v${QSHELL_VERSION}/qshell-v${QSHELL_VERSION}-linux-amd64.tar.gz"
+
+          mkdir -p /tmp/qshell
+          curl -fL "$QSHELL_URL" -o /tmp/qshell.tar.gz
+
+          tar -xzf /tmp/qshell.tar.gz -C /tmp/qshell
+
+          QSHELL_BIN="$(find /tmp/qshell -type f -name qshell | head -n 1)"
+
+          if [ -z "$QSHELL_BIN" ]; then
+            echo "错误：找不到 Qshell 可执行文件"
+            exit 1
+          fi
+
+          sudo install "$QSHELL_BIN" /usr/local/bin/qshell
+          qshell -v
+
+      # 9. 上传到七牛云
+      - name: Upload to Qiniu Kodo
+        env:
+          QINIU_ACCESS_KEY: ${{ secrets.QINIU_ACCESS_KEY }}
+          QINIU_SECRET_KEY: ${{ secrets.QINIU_SECRET_KEY }}
+        run: |
+          set -e
+
+          if [ -z "$QINIU_ACCESS_KEY" ] || [ -z "$QINIU_SECRET_KEY" ]; then
+            echo "错误：没有配置七牛云密钥"
+            exit 1
+          fi
+
+          # 配置七牛云账号
+          qshell account \
+            "$QINIU_ACCESS_KEY" \
+            "$QINIU_SECRET_KEY" \
+            miniskins
+
+          # 上传到 meta-miniskins Bucket 的 v1/ 目录
+          # 保留 meta 下的原始目录结构
+          # check-exists + check-hash：先检查空间中同名文件，哈希一致则跳过，只有变化时才覆盖
+          # skip-path-prefixes：排除 meta/.git 目录
+          qshell qupload2 \
+            --src-dir=meta \
+            --bucket=meta-miniskins \
+            --key-prefix=v1/ \
+            --check-exists \
+            --check-hash \
+            --overwrite \
+            --rescan-local \
+            --skip-path-prefixes=.git/ \
+            --thread-count=10
+
+      # 10. 输出完成信息
+      - name: Upload Summary
+        if: success()
+        run: |
+          echo "Minecraft Meta 更新及七牛云上传完成"
+          echo "Bucket: meta-miniskins"
+          echo "目录: v1/"

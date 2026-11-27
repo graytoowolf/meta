@@ -12,6 +12,6 @@ if [ ! -d "${UPSTREAM_DIR}" ]; then
     git clone ${UPSTREAM_REPO} ${UPSTREAM_DIR}
 fi
 
-if [ ! -d "${MMC_DIR}" ]; then
-    git clone ${MMC_REPO} ${MMC_DIR}
+if [ ! -d "${META_DIR}" ]; then
+    git clone ${META_REPO} ${META_DIR}
 fi

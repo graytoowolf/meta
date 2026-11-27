@@ -19,10 +19,10 @@ def HashFile(hash, fname):
 ignore = set(["index.json", "package.json", ".git"])
 
 # initialize output structures - package list level
-packages = MultiMCPackageIndex()
+packages = MetaPackageIndex()
 
 # walk thorugh all the package folders
-for package in sorted(os.listdir('multimc')):
+for package in sorted(os.listdir('meta')):
     if package in ignore:
         continue
 
@@ -32,24 +32,24 @@ for package in sorted(os.listdir('multimc')):
         recommendedVersions = set(sharedData.recommended)
 
     # initialize output structures - version list level
-    versionList = MultiMCVersionIndex()
+    versionList = MetaVersionIndex()
     versionList.uid = package
     versionList.name = sharedData.name
 
     # walk through all the versions of the package
-    for filename in os.listdir("multimc/%s" % (package)):
+    for filename in os.listdir("meta/%s" % (package)):
         if filename in ignore:
             continue
 
         # parse and hash the version file
-        filepath = "multimc/%s/%s" % (package, filename)
+        filepath = "meta/%s/%s" % (package, filename)
         filehash = HashFile(hashlib.sha256, filepath)
         versionFile = None
         with open(filepath) as json_file:
-            versionFile = MultiMCVersionFile(json.load(json_file))
+            versionFile = MetaVersionFile(json.load(json_file))
 
         # pull information from the version file
-        versionEntry = MultiMCVersionIndexEntry()
+        versionEntry = MetaVersionIndexEntry()
         if versionFile.version in recommendedVersions:
             versionEntry.recommended = True
         versionEntry.version = versionFile.version
@@ -65,12 +65,12 @@ for package in sorted(os.listdir('multimc')):
     versionList.versions = sorted(versionList.versions, key=itemgetter('releaseTime'), reverse=True)
 
     # write the version index for the package
-    outFilePath = "multimc/%s/index.json" % (package)
+    outFilePath = "meta/%s/index.json" % (package)
     with open(outFilePath, 'w') as outfile:
         json.dump(versionList.to_json(), outfile, sort_keys=True, indent=4)
 
     # insert entry into the package index
-    packageEntry = MultiMCPackageIndexEntry(
+    packageEntry = MetaPackageIndexEntry(
             {
                 "uid" : package,
                 "name" : sharedData.name,
@@ -80,5 +80,5 @@ for package in sorted(os.listdir('multimc')):
     packages.packages.append(packageEntry)
 
 # write the repository package index
-with open("multimc/index.json", 'w') as outfile:
+with open("meta/index.json", 'w') as outfile:
     json.dump(packages.to_json(), outfile, sort_keys=True, indent=4)

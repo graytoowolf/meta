@@ -1,7 +1,7 @@
 export UPSTREAM_DIR=upstream
-export UPSTREAM_REPO=git@github.com:MultiMC/meta-upstream.git
-export MMC_DIR=multimc
-export MMC_REPO=git@github.com:MultiMC/meta-multimc.git
+export UPSTREAM_REPO=https://github.com/MultiMC/meta-upstream.git
+export META_DIR=meta
+export META_REPO=https://github.com/MultiMC/meta-multimc.git
 export S3_master=r2:multimc-meta/v1/
 export S3_develop=r2:multimc-meta/dev/
 export BRANCH_master=master

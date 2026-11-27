@@ -13,7 +13,7 @@ def eprint(*args, **kwargs):
 
 def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, installerProfile: NeoforgeInstallerProfileV1, version: NeoforgeVersion):
     eprint("Generating NeoForge %s." % version.longVersion)
-    result = MultiMCVersionFile({"name": "NeoForge", "version": version.rawVersion, "uid": "net.neoforged" })
+    result = MetaVersionFile({"name": "NeoForge", "version": version.rawVersion, "uid": "net.neoforged" })
     result.requires = [DependencyEntry(uid='net.minecraft', equals=version.mcversion_sane)]
     result.mainClass = "io.github.zekerzhayard.forgewrapper.installer.Main"
 
@@ -22,7 +22,7 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
     # load the locally cached installer file info and use it to add the installer entry in the json
     with open("upstream/neoforge/installer_info/%s.json" % version.longVersion, 'r', encoding='utf-8') as f:
         installerInfo = InstallerInfo(json.load(f))
-        InstallerLib = MultiMCLibrary(name=GradleSpecifier("net.neoforged:%s:%s:installer" % (version.package, version.longVersion)))
+        InstallerLib = MetaLibrary(name=GradleSpecifier("net.neoforged:%s:%s:installer" % (version.package, version.longVersion)))
         InstallerLib.downloads = MojangLibraryDownloads()
         InstallerLib.downloads.artifact = MojangArtifact()
         InstallerLib.downloads.artifact.url = "https://maven.neoforged.net/releases/%s" % (InstallerLib.name.getPath())
@@ -31,23 +31,23 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
         mavenLibs.append(InstallerLib)
 
     for upstreamLib in installerProfile.libraries:
-        mmcLib = MultiMCLibrary(upstreamLib.to_json())
-        if mmcLib.name.isLog4j():
+        metaLib = MetaLibrary(upstreamLib.to_json())
+        if metaLib.name.isLog4j():
             continue
-        mavenLibs.append(mmcLib)
+        mavenLibs.append(metaLib)
 
     result.mavenFiles = mavenLibs
 
     libraries = []
 
-    # wrapperLib = MultiMCLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc5"))
+    # wrapperLib = MetaLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc5"))
     # wrapperLib.downloads = MojangLibraryDownloads()
     # wrapperLib.downloads.artifact = MojangArtifact()
     # wrapperLib.downloads.artifact.url = "https://files.multimc.org/maven/%s" % (wrapperLib.name.getPath())
     # wrapperLib.downloads.artifact.sha1 = "d82cb39636a5092a8e5b5de82ccfe5f7e70e8d49"
     # wrapperLib.downloads.artifact.size = 35390
     # libraries.append(wrapperLib)
-    wrapperLib = MultiMCLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc7"))
+    wrapperLib = MetaLibrary(name=GradleSpecifier("io.github.zekerzhayard:ForgeWrapper:mmc7"))
     wrapperLib.downloads = MojangLibraryDownloads()
     wrapperLib.downloads.artifact = MojangArtifact()
     wrapperLib.downloads.artifact.url = "https://files.multimc.org/maven/%s" % (wrapperLib.name.getPath())
@@ -56,10 +56,10 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
     libraries.append(wrapperLib)
 
     for upstreamLib in installerVersion.libraries:
-        mmcLib = MultiMCLibrary(upstreamLib.to_json())
-        if mmcLib.name.isLog4j():
+        metaLib = MetaLibrary(upstreamLib.to_json())
+        if metaLib.name.isLog4j():
             continue
-        libraries.append(mmcLib)
+        libraries.append(metaLib)
     result.libraries = libraries
 
     result.releaseTime = installerVersion.releaseTime
@@ -72,7 +72,7 @@ def versionFromBuildSystemInstaller(installerVersion : MojangVersionFile, instal
 
 print("")
 print("Making dirs...")
-os.makedirs("multimc/net.neoforged/", exist_ok=True)
+os.makedirs("meta/net.neoforged/", exist_ok=True)
 
 # load the locally cached version list
 with open("upstream/neoforge/derived_index.json", 'r', encoding='utf-8') as f:
@@ -107,7 +107,7 @@ for id, entry in remoteVersionlist.versions.items():
         recommendedVersions.append(version.longVersion)
 
     # If we do not have the corresponding Minecraft version, we ignore it
-    if not os.path.isfile("multimc/net.minecraft/%s.json" % version.mcversion_sane):
+    if not os.path.isfile("meta/net.minecraft/%s.json" % version.mcversion_sane):
         eprint ("Skipping %s with no corresponding Minecraft version %s" % (id, version.mcversion_sane))
         continue
 
@@ -129,7 +129,7 @@ for id, entry in remoteVersionlist.versions.items():
         eprint ("Skipping %s with missing profile json" % id)
         continue
 
-    outFilepath = "multimc/net.neoforged/%s.json" % outVersion.version
+    outFilepath = "meta/net.neoforged/%s.json" % outVersion.version
     with open(outFilepath, 'w') as outfile:
         json.dump(outVersion.to_json(), outfile, sort_keys=True, indent=4)
 
@@ -137,7 +137,7 @@ recommendedVersions.sort()
 
 print ('Recommended versions:', recommendedVersions)
 
-sharedData = MultiMCSharedPackageData(uid = 'net.neoforged', name = "NeoForge")
+sharedData = MetaSharedPackageData(uid = 'net.neoforged', name = "NeoForge")
 sharedData.projectUrl = 'https://neoforged.net/'
 sharedData.recommended = recommendedVersions
 sharedData.write()
